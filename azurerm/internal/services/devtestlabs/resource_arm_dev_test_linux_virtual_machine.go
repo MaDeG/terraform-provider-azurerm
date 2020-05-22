@@ -1,17 +1,21 @@
 package devtestlabs
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
 	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2016-05-15/dtl"
+	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-09-01/network"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/azure"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/tf"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/validate"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/clients"
+	computeParse "github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/services/compute/parse"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/tags"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/timeouts"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/utils"
@@ -134,6 +138,26 @@ func resourceArmDevTestLinuxVirtualMachine() *schema.Resource {
 				Computed: true,
 			},
 
+			"public_ip_address": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+
+			"public_ip_addresses": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+
+			"private_ip_address": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+
+			"private_ip_addresses": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+
 			"unique_identifier": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -143,6 +167,8 @@ func resourceArmDevTestLinuxVirtualMachine() *schema.Resource {
 }
 
 func resourceArmDevTestLinuxVirtualMachineCreateUpdate(d *schema.ResourceData, meta interface{}) error {
+	log.Printf("[INFO] Sleeping waiting for attach...")
+	time.Sleep(60 * time.Second)
 	client := meta.(*clients.Client).DevTestLabs.VirtualMachinesClient
 	ctx, cancel := timeouts.ForCreateUpdate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
@@ -244,6 +270,9 @@ func resourceArmDevTestLinuxVirtualMachineCreateUpdate(d *schema.ResourceData, m
 
 func resourceArmDevTestLinuxVirtualMachineRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).DevTestLabs.VirtualMachinesClient
+	virtuaMachineClient := meta.(*clients.Client).Compute.VMClient
+	networkInterfacesClient := meta.(*clients.Client).Network.InterfacesClient
+	publicIPAddressesClient := meta.(*clients.Client).Network.PublicIPsClient
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
 	defer cancel()
 
@@ -291,7 +320,31 @@ func resourceArmDevTestLinuxVirtualMachineRead(d *schema.ResourceData, meta inte
 		d.Set("unique_identifier", props.UniqueIdentifier)
 	}
 
+	connectionInfo, err := retrieveVirtualMachineIPAddresses(ctx, virtuaMachineClient, networkInterfacesClient, publicIPAddressesClient, *read.ComputeID)
+	if err == nil {
+		d.Set("private_ip_address", connectionInfo.primaryPrivateAddress)
+		d.Set("private_ip_addresses", connectionInfo.privateAddresses)
+		d.Set("public_ip_address", connectionInfo.primaryPublicAddress)
+		d.Set("public_ip_addresses", connectionInfo.publicAddresses)
+		log.Printf("[TRACE] Retrieved ")
+	} else {
+		log.Printf("[INFO] Error occurred retrieving IP addresses of DevTest Linux Virtual Machine %q in Lab %q (Resource Group %q): %+v", name, labName, resourceGroup, err)
+	}
+
 	return tags.FlattenAndSet(d, read.Tags)
+}
+
+func retrieveVirtualMachineIPAddresses(ctx context.Context, clientVM *compute.VirtualMachinesClient, networkInterfacesClient *network.InterfacesClient, publicIPAddressesClient *network.PublicIPAddressesClient, computeID string) (*connectionInfo, error) {
+	id, err := computeParse.VirtualMachineID(computeID)
+	if err != nil {
+		return nil, err
+	}
+	respVM, err := clientVM.Get(ctx, id.ResourceGroup, id.Name, "")
+	if err != nil {
+		return nil, err
+	}
+	addresses := retrieveConnectionInformation(ctx, networkInterfacesClient, publicIPAddressesClient, respVM.VirtualMachineProperties)
+	return &addresses, nil
 }
 
 func resourceArmDevTestLinuxVirtualMachineDelete(d *schema.ResourceData, meta interface{}) error {
