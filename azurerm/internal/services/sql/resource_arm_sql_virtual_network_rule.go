@@ -14,7 +14,6 @@ import (
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/azure"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/tf"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/clients"
-	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/features"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/timeouts"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/utils"
 )
@@ -79,7 +78,7 @@ func resourceArmSqlVirtualNetworkRuleCreateUpdate(d *schema.ResourceData, meta i
 	virtualNetworkSubnetId := d.Get("subnet_id").(string)
 	ignoreMissingVnetServiceEndpoint := d.Get("ignore_missing_vnet_service_endpoint").(bool)
 
-	if features.ShouldResourcesBeImported() && d.IsNewResource() {
+	if d.IsNewResource() {
 		existing, err := client.Get(ctx, resourceGroup, serverName, name)
 		if err != nil {
 			if !utils.ResponseWasNotFound(existing.Response) {
@@ -217,16 +216,22 @@ func ValidateSqlVirtualNetworkRuleName(v interface{}, k string) (warnings []stri
 			"%q cannot be an empty string: %q", k, value))
 	}
 
-	// Cannot be more than 128 characters
-	if len(value) > 128 {
+	// Cannot be shorter than 2 characters
+	if len(value) == 1 {
 		errors = append(errors, fmt.Errorf(
-			"%q cannot be longer than 128 characters: %q", k, value))
+			"%q cannot be shorter than 2 characters: %q", k, value))
 	}
 
-	// Must only contain alphanumeric characters or hyphens
-	if !regexp.MustCompile(`^[A-Za-z0-9-]*$`).MatchString(value) {
+	// Cannot be more than 64 characters
+	if len(value) > 64 {
 		errors = append(errors, fmt.Errorf(
-			"%q can only contain alphanumeric characters and hyphens: %q",
+			"%q cannot be longer than 64 characters: %q", k, value))
+	}
+
+	// Must only contain alphanumeric characters, underscores, periods or hyphens
+	if !regexp.MustCompile(`^[A-Za-z0-9-\._]*$`).MatchString(value) {
+		errors = append(errors, fmt.Errorf(
+			"%q can only contain alphanumeric characters, underscores, periods and hyphens: %q",
 			k, value))
 	}
 
@@ -236,10 +241,16 @@ func ValidateSqlVirtualNetworkRuleName(v interface{}, k string) (warnings []stri
 			"%q cannot end with a hyphen: %q", k, value))
 	}
 
-	// Cannot start with a number or hyphen
-	if regexp.MustCompile(`^[0-9-]`).MatchString(value) {
+	// Cannot end in a period
+	if regexp.MustCompile(`\.$`).MatchString(value) {
 		errors = append(errors, fmt.Errorf(
-			"%q cannot start with a number or hyphen: %q", k, value))
+			"%q cannot end with a period: %q", k, value))
+	}
+
+	// Cannot start with a period, underscore or hyphen
+	if regexp.MustCompile(`^[\._-]`).MatchString(value) {
+		errors = append(errors, fmt.Errorf(
+			"%q cannot start with a period, underscore or hyphen: %q", k, value))
 	}
 
 	// There are multiple returns in the case that there is more than one invalid
@@ -261,7 +272,6 @@ func ValidateSqlVirtualNetworkRuleName(v interface{}, k string) (warnings []stri
 func sqlVirtualNetworkStateStatusCodeRefreshFunc(ctx context.Context, client *sql.VirtualNetworkRulesClient, resourceGroup string, serverName string, name string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		resp, err := client.Get(ctx, resourceGroup, serverName, name)
-
 		if err != nil {
 			if utils.ResponseWasNotFound(resp.Response) {
 				log.Printf("[DEBUG] Retrieving SQL Virtual Network Rule %q (SQL Server: %q, Resource Group: %q) returned 404.", resourceGroup, serverName, name)
