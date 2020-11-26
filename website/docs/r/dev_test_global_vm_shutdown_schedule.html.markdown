@@ -31,7 +31,7 @@ resource "azurerm_subnet" "example" {
   name                 = "sample-subnet"
   resource_group_name  = azurerm_resource_group.example.name
   virtual_network_name = azurerm_virtual_network.example.name
-  address_prefix       = "10.0.2.0/24"
+  address_prefixes     = ["10.0.2.0/24"]
 }
 
 resource "azurerm_network_interface" "example" {
@@ -77,7 +77,7 @@ resource "azurerm_dev_test_global_vm_shutdown_schedule" "example" {
   enabled            = true
 
   daily_recurrence_time = "1100"
-  time_zone             = "Pacific Standard Time"
+  timezone              = "Pacific Standard Time"
 
   notification_settings {
     enabled         = true
