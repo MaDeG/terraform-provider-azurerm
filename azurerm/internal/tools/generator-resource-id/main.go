@@ -482,7 +482,7 @@ func (f GolangCodeFormatter) Format(input string) (*string, error) {
 
 func (f GolangCodeFormatter) randomFilePath() string {
 	time := time.Now().Unix()
-	return fmt.Sprintf("%stemp-%d.go", os.TempDir(), time)
+	return fmt.Sprintf("%s/temp-%d.go", os.TempDir(), time)
 }
 
 func (f GolangCodeFormatter) runGoFmt(filePath string) {
