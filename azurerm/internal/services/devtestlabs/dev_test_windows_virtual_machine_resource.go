@@ -81,6 +81,10 @@ func resourceArmDevTestWindowsVirtualMachine() *schema.Resource {
 				ValidateFunc: validation.StringInSlice([]string{
 					"Standard",
 					"Premium",
+					"StandardSSD",
+					"StandardHDD",
+					"PremiumHDD",
+					"PremiumSSD",
 				}, false),
 			},
 
