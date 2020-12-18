@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2016-05-15/dtl"
+	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/azure"
@@ -260,11 +260,11 @@ func expandArmDevTestLabGlobalVMShutdownScheduleNotificationSettings(d *schema.R
 	webhookUrl := notificationSettingsConfig["webhook_url"].(string)
 	timeInMinutes := int32(notificationSettingsConfig["time_in_minutes"].(int))
 
-	var notificationStatus dtl.NotificationStatus
+	var notificationStatus dtl.EnableStatus
 	if notificationSettingsConfig["enabled"].(bool) {
-		notificationStatus = dtl.NotificationStatusEnabled
+		notificationStatus = dtl.EnableStatusEnabled
 	} else {
-		notificationStatus = dtl.NotificationStatusDisabled
+		notificationStatus = dtl.EnableStatusDisabled
 	}
 
 	return &dtl.NotificationSettings{
@@ -289,7 +289,7 @@ func flattenArmDevTestLabGlobalVMShutdownScheduleNotificationSettings(notificati
 		result["time_in_minutes"] = *notificationSettings.TimeInMinutes
 	}
 
-	result["enabled"] = notificationSettings.Status == dtl.NotificationStatusEnabled
+	result["enabled"] = notificationSettings.Status == dtl.EnableStatusEnabled
 
 	return []interface{}{result}
 }

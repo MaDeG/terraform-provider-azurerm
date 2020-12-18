@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2016-05-15/dtl"
+	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/azure"
@@ -153,10 +153,10 @@ func resourceArmDevTestLabSchedules() *schema.Resource {
 						"status": {
 							Type:     schema.TypeString,
 							Optional: true,
-							Default:  dtl.NotificationStatusDisabled,
+							Default:  dtl.EnableStatusDisabled,
 							ValidateFunc: validation.StringInSlice([]string{
-								string(dtl.NotificationStatusEnabled),
-								string(dtl.NotificationStatusDisabled),
+								string(dtl.EnableStatusEnabled),
+								string(dtl.EnableStatusDisabled),
 							}, false),
 						},
 						"time_in_minutes": {
@@ -430,7 +430,7 @@ func expandArmDevTestLabScheduleNotificationSettings(d *schema.ResourceData) *dt
 	webhookUrl := notificationSettingsConfig["webhook_url"].(string)
 	timeInMinutes := int32(notificationSettingsConfig["time_in_minutes"].(int))
 
-	notificationStatus := dtl.NotificationStatus(notificationSettingsConfig["status"].(string))
+	notificationStatus := dtl.EnableStatus(notificationSettingsConfig["status"].(string))
 
 	return &dtl.NotificationSettings{
 		WebhookURL:    &webhookUrl,
